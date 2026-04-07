@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192">
+  <rect width="192" height="192" rx="38" fill="#0f3460"/>
+  <rect x="16" y="16" width="160" height="160" rx="28" fill="#16213e"/>
+  <!-- Greek flag blue stripes simplified as accent bar -->
+  <rect x="28" y="56" width="136" height="12" rx="4" fill="#e94560"/>
+  <rect x="28" y="76" width="136" height="12" rx="4" fill="#e94560" opacity="0.5"/>
+  <text x="96" y="130" text-anchor="middle" font-family="sans-serif"
+        font-size="32" font-weight="bold" fill="#eaeaea">GR⇌EN</text>
+</svg>

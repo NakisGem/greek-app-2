@@ -1,0 +1,13 @@
+{
+  "name": "Greek ↔ English",
+  "short_name": "Greek EN",
+  "description": "B1/B2 Greek-English vocabulary quiz",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#1a1a2e",
+  "theme_color": "#0f3460",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}

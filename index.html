@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Greek EN">
+<title>Greek ↔ English</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon.svg">
+<style>
+  :root {
+    --bg:        #1a1a2e;
+    --card:      #16213e;
+    --panel:     #0f3460;
+    --accent:    #e94560;
+    --text:      #eaeaea;
+    --dim:       #a0a0b0;
+    --btn:       #1f4068;
+    --btn-hover: #2a5298;
+    --green:     #27ae60;
+    --red:       #c0392b;
+    --border:    #3a6ea8;
+    --radius:    14px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior: none;
+  }
+
+  body {
+    display: flex;
+    flex-direction: column;
+    min-height: 100%;
+    /* respect notch / Dynamic Island / home indicator */
+    padding-top:    env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left:   env(safe-area-inset-left);
+    padding-right:  env(safe-area-inset-right);
+  }
+
+  /* ── Header ── */
+  header {
+    background: var(--panel);
+    padding: 14px 20px 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0;
+  }
+
+  header h1 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+  }
+
+  .scores {
+    display: flex;
+    gap: 14px;
+    font-size: 0.82rem;
+  }
+
+  .scores span { color: var(--dim); }
+  .scores .score-val { font-weight: 600; }
+  #lbl-score  .score-val { color: var(--accent); }
+  #lbl-streak .score-val { color: #f0c040; }
+  #lbl-best   .score-val { color: var(--dim); }
+
+  /* ── Word card ── */
+  .card {
+    background: var(--card);
+    margin: 18px 16px 10px;
+    border-radius: var(--radius);
+    padding: 22px 20px 18px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+
+  .direction {
+    font-size: 0.85rem;
+    color: var(--dim);
+    font-style: italic;
+    margin-bottom: 10px;
+    min-height: 1.2em;
+  }
+
+  .word {
+    font-size: clamp(1.5rem, 6vw, 2.1rem);
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1.25;
+    word-break: break-word;
+    min-height: 2.5em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .hint {
+    font-size: 0.78rem;
+    color: var(--dim);
+    font-style: italic;
+    margin-top: 10px;
+  }
+
+  /* ── Choices ── */
+  .choices {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    padding: 0 16px;
+    flex-shrink: 0;
+  }
+
+  .choice-btn {
+    background: var(--btn);
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: inherit;
+    font-size: clamp(0.85rem, 3.5vw, 1rem);
+    font-weight: 600;
+    min-height: 72px;
+    padding: 12px 10px;
+    cursor: pointer;
+    transition: background 0.12s, transform 0.08s;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 8px;
+    line-height: 1.3;
+    text-align: left;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  .choice-btn .lbl {
+    background: var(--accent);
+    color: #fff;
+    font-weight: 700;
+    font-size: 0.9rem;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.12s;
+  }
+
+  .choice-btn:active:not(:disabled) { transform: scale(0.97); }
+  .choice-btn:hover:not(:disabled)  { background: var(--btn-hover); }
+
+  .choice-btn.correct { background: var(--green); border-color: var(--green); }
+  .choice-btn.correct .lbl { background: rgba(255,255,255,0.3); }
+
+  .choice-btn.wrong   { background: var(--red);   border-color: var(--red);   }
+  .choice-btn.wrong   .lbl { background: rgba(255,255,255,0.3); }
+
+  .choice-btn:disabled { cursor: default; }
+
+  /* ── Feedback ── */
+  .feedback {
+    text-align: center;
+    font-size: 1.05rem;
+    font-weight: 600;
+    min-height: 2.2em;
+    padding: 10px 16px 4px;
+    color: var(--text);
+    flex-shrink: 0;
+  }
+
+  /* ── Next button ── */
+  .next-wrap {
+    display: flex;
+    justify-content: center;
+    padding: 8px 16px 14px;
+    flex-shrink: 0;
+  }
+
+  #btn-next {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius);
+    font-family: inherit;
+    font-size: 1rem;
+    font-weight: 700;
+    padding: 14px 44px;
+    cursor: pointer;
+    transition: opacity 0.15s, transform 0.08s;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  #btn-next:disabled { opacity: 0.35; cursor: default; }
+  #btn-next:active:not(:disabled) { transform: scale(0.97); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🇬🇷 Greek ↔ English</h1>
+  <div class="scores">
+    <span id="lbl-score"> Score  <span class="score-val">0</span></span>
+    <span id="lbl-streak">🔥 <span class="score-val">0</span></span>
+    <span id="lbl-best">  Best  <span class="score-val">0</span></span>
+  </div>
+</header>
+
+<div class="card">
+  <div class="direction" id="direction">—</div>
+  <div class="word" id="word">…</div>
+  <div class="hint">Choose the correct translation ↓</div>
+</div>
+
+<div class="choices" id="choices">
+  <button class="choice-btn" id="btn0"><span class="lbl">A</span><span class="val"></span></button>
+  <button class="choice-btn" id="btn1"><span class="lbl">B</span><span class="val"></span></button>
+  <button class="choice-btn" id="btn2"><span class="lbl">C</span><span class="val"></span></button>
+  <button class="choice-btn" id="btn3"><span class="lbl">D</span><span class="val"></span></button>
+</div>
+
+<div class="feedback" id="feedback"></div>
+
+<div class="next-wrap">
+  <button id="btn-next" disabled>Next  →</button>
+</div>
+
+<script>
+// ── Word bank (B1 / B2 / early C1) ────────────────────────────────────────
+const WORDS = [
+  // Verbs
+  ["αναπτύσσω","develop"],["επιτυγχάνω","achieve"],["εξηγώ","explain"],
+  ["υποστηρίζω","support"],["αντιμετωπίζω","deal with"],["προτείνω","suggest"],
+  ["αποφασίζω","decide"],["συνεχίζω","continue"],["βελτιώνω","improve"],
+  ["επηρεάζω","influence"],["αναγνωρίζω","recognize"],["επιλέγω","select"],
+  ["εξετάζω","examine"],["επισκέπτομαι","visit"],["αποφεύγω","avoid"],
+  ["καταλαβαίνω","understand"],["σκέφτομαι","think"],["θυμάμαι","remember"],
+  ["ξεχνώ","forget"],["μαθαίνω","learn"],["φεύγω","leave"],["φτάνω","arrive"],
+  ["αγοράζω","buy"],["πουλώ","sell"],["πληρώνω","pay"],["κερδίζω","earn"],
+  ["χάνω","lose"],["προσπαθώ","try"],["επιτρέπω","allow"],["αρνούμαι","refuse"],
+  ["συμφωνώ","agree"],["διαφωνώ","disagree"],["παραδέχομαι","admit"],
+  ["παρατηρώ","observe"],["ελπίζω","hope"],["φοβάμαι","fear"],
+  ["προστατεύω","protect"],["καταστρέφω","destroy"],["δημιουργώ","create"],
+  ["οργανώνω","organize"],["διαχειρίζομαι","manage"],["ενθαρρύνω","encourage"],
+  ["απογοητεύω","disappoint"],["εντυπωσιάζω","impress"],["ενοχλώ","bother"],
+  ["πείθω","persuade"],["απαιτώ","require"],["προβλέπω","predict"],
+  ["αξιολογώ","evaluate"],["εφαρμόζω","apply"],["μεταφράζω","translate"],
+  ["συγκρίνω","compare"],["αναλύω","analyse"],["επιλύω","solve"],
+  ["επικοινωνώ","communicate"],["συνεργάζομαι","cooperate"],
+  ["συμμετέχω","participate"],["εκπροσωπώ","represent"],
+  ["περιγράφω","describe"],["αναφέρω","mention"],["εισάγω","introduce"],
+  ["αποδέχομαι","accept"],["απορρίπτω","reject"],["εγκαταλείπω","abandon"],
+  ["διατηρώ","maintain"],["μεταβάλλω","change"],["ενισχύω","strengthen"],
+  ["μειώνω","reduce"],["αυξάνω","increase"],["διευκολύνω","facilitate"],
+  ["αναθεωρώ","revise"],["επεκτείνω","extend"],["περιορίζω","limit"],
+  ["αμφισβητώ","challenge"],["επιβεβαιώνω","confirm"],["υπολογίζω","calculate"],
+  ["εκτιμώ","appreciate"],["σέβομαι","respect"],["εμπιστεύομαι","trust"],
+  ["υπερβαίνω","exceed"],["επιστρέφω","return"],["βασίζομαι","rely on"],
+  ["εξαρτώμαι","depend"],["στοχεύω","aim"],["παρέχω","provide"],
+  ["ολοκληρώνω","complete"],["ξεκινώ","start"],["τελειώνω","finish"],
+  ["κατευθύνω","direct"],["καθοδηγώ","guide"],["ελέγχω","control"],
+  ["διερευνώ","investigate"],["ανακαλύπτω","discover"],
+  // Nouns
+  ["η εμπειρία","experience"],["η γνώση","knowledge"],["η ευκαιρία","opportunity"],
+  ["η πρόκληση","challenge"],["η λύση","solution"],["το πρόβλημα","problem"],
+  ["η απόφαση","decision"],["το αποτέλεσμα","result"],["η επιτυχία","success"],
+  ["η αποτυχία","failure"],["η ανάπτυξη","development"],["η πρόοδος","progress"],
+  ["η πεποίθηση","belief"],["η στάση","attitude"],["η άποψη","opinion"],
+  ["η συμπεριφορά","behaviour"],["η ικανότητα","ability"],
+  ["η δυνατότητα","possibility"],["η ευθύνη","responsibility"],
+  ["το δικαίωμα","right"],["η ελευθερία","freedom"],["η δικαιοσύνη","justice"],
+  ["η ισότητα","equality"],["ο σεβασμός","respect"],["η εμπιστοσύνη","trust"],
+  ["η υπομονή","patience"],["το θάρρος","courage"],["η σοφία","wisdom"],
+  ["η εντιμότητα","honesty"],["η φιλοδοξία","ambition"],["το πάθος","passion"],
+  ["η αφοσίωση","dedication"],["η επιμονή","persistence"],
+  ["η ευελιξία","flexibility"],["η δημιουργικότητα","creativity"],
+  ["η στρατηγική","strategy"],["το σχέδιο","plan"],["η πολιτική","policy"],
+  ["η οικονομία","economy"],["η κοινωνία","society"],["η παράδοση","tradition"],
+  ["το περιβάλλον","environment"],["η ενέργεια","energy"],
+  ["η τεχνολογία","technology"],["η καινοτομία","innovation"],
+  ["η εξέλιξη","evolution"],["η έρευνα","research"],["η επιστήμη","science"],
+  ["η εκπαίδευση","education"],["η κατάρτιση","training"],
+  ["η γλώσσα","language"],["η επικοινωνία","communication"],
+  ["η πληροφορία","information"],["η ανάλυση","analysis"],
+  ["το επιχείρημα","argument"],["η απόδειξη","evidence"],["η θεωρία","theory"],
+  ["το γεγονός","fact"],["η αιτία","cause"],["η συνέπεια","consequence"],
+  ["η επίδραση","impact"],["η αλλαγή","change"],["η μεταρρύθμιση","reform"],
+  ["η βελτίωση","improvement"],["η κρίση","crisis"],["ο κίνδυνος","risk"],
+  ["η ασφάλεια","safety"],["η υγεία","health"],["η θεραπεία","treatment"],
+  ["το φάρμακο","medicine"],["ο ασθενής","patient"],["ο γιατρός","doctor"],
+  ["το νοσοκομείο","hospital"],["η κυβέρνηση","government"],["ο νόμος","law"],
+  ["η δημοκρατία","democracy"],["ο πολίτης","citizen"],["η ψηφοφορία","vote"],
+  ["η συμφωνία","agreement"],["το εμπόριο","trade"],["η επένδυση","investment"],
+  ["η αγορά","market"],["η βιομηχανία","industry"],["η εταιρεία","company"],
+  ["ο οργανισμός","organisation"],["η διαχείριση","management"],
+  ["ο προϋπολογισμός","budget"],["το κέρδος","profit"],["η ζημία","loss"],
+  ["το εισόδημα","income"],["ο μισθός","salary"],["η εργασία","work"],
+  ["η απασχόληση","employment"],["η ανεργία","unemployment"],
+  ["η καριέρα","career"],["η συνέντευξη","interview"],
+  ["η πρόσληψη","hiring"],["η απόλυση","dismissal"],
+  ["η παραίτηση","resignation"],["η συνάντηση","meeting"],
+  ["η παρουσίαση","presentation"],["η έκθεση","report"],
+  ["η πρόταση","proposal"],["η σύμβαση","contract"],
+  ["ο πελάτης","client"],["η ζήτηση","demand"],["η προσφορά","supply"],
+  ["η τιμή","price"],["η ποιότητα","quality"],["η παραγωγή","production"],
+  ["η κατανάλωση","consumption"],["η εξαγωγή","export"],["η εισαγωγή","import"],
+  ["η συνεργασία","cooperation"],["το πλεονέκτημα","advantage"],
+  ["το μειονέκτημα","disadvantage"],["η ποικιλομορφία","diversity"],
+  ["η προσαρμογή","adaptation"],["η μετανάστευση","migration"],
+  ["η παγκοσμιοποίηση","globalisation"],["η βιωσιμότητα","sustainability"],
+  ["η ρύπανση","pollution"],["η ανακύκλωση","recycling"],
+  ["η βιοποικιλότητα","biodiversity"],["η υποδομή","infrastructure"],
+  ["η συγκοινωνία","transport"],["τα δεδομένα","data"],
+  ["η τεχνητή νοημοσύνη","artificial intelligence"],
+  ["η κυβερνοασφάλεια","cybersecurity"],
+  // Adjectives
+  ["σημαντικός","significant"],["ουσιαστικός","essential"],
+  ["αποτελεσματικός","effective"],["επιτυχημένος","successful"],
+  ["ανεπαρκής","insufficient"],["πολύπλοκος","complex"],
+  ["εκτεταμένος","extensive"],["ακριβής","accurate"],["αξιόπιστος","reliable"],
+  ["πιθανός","probable"],["αναπόφευκτος","inevitable"],["προφανής","obvious"],
+  ["απρόβλεπτος","unpredictable"],["συγκεκριμένος","specific"],
+  ["γενικός","general"],["διεθνής","international"],["σύγχρονος","modern"],
+  ["παραδοσιακός","traditional"],["πολιτικός","political"],
+  ["οικονομικός","economic"],["κοινωνικός","social"],["πολιτιστικός","cultural"],
+  ["εκπαιδευτικός","educational"],["επιστημονικός","scientific"],
+  ["τεχνολογικός","technological"],["περιβαλλοντικός","environmental"],
+  ["ιατρικός","medical"],["νομικός","legal"],["επαγγελματικός","professional"],
+  ["προσωπικός","personal"],["δημόσιος","public"],["ιδιωτικός","private"],
+  ["πρακτικός","practical"],["θεωρητικός","theoretical"],["θετικός","positive"],
+  ["αρνητικός","negative"],["ουδέτερος","neutral"],["ενεργός","active"],
+  ["παθητικός","passive"],["δημιουργικός","creative"],
+  ["καταστρεπτικός","destructive"],["παραγωγικός","productive"],
+  ["αειφόρος","sustainable"],["εξαιρετικός","exceptional"],["κοινός","common"],
+  ["σπάνιος","rare"],["μοναδικός","unique"],["ευρύς","broad"],
+  ["περιορισμένος","limited"],["υπερβολικός","excessive"],["μέτριος","moderate"],
+  ["βαθύς","deep"],["επιφανειακός","superficial"],["αυστηρός","strict"],
+  ["ευέλικτος","flexible"],["διαφανής","transparent"],["κρίσιμος","crucial"],
+  ["επείγων","urgent"],["επικίνδυνος","dangerous"],["ασφαλής","safe"],
+  ["δίκαιος","fair"],["άδικος","unfair"],["λογικός","reasonable"],
+  ["παράλογος","unreasonable"],["διαθέσιμος","available"],
+  ["απαραίτητος","necessary"],["εθελοντικός","voluntary"],
+  ["υποχρεωτικός","compulsory"],["ανεξάρτητος","independent"],
+  ["εξαρτημένος","dependent"],["ειλικρινής","sincere"],
+  ["φιλόδοξος","ambitious"],["ταπεινός","humble"],["ευάλωτος","vulnerable"],
+  ["ανθεκτικός","resilient"],["απαισιόδοξος","pessimistic"],
+  ["αισιόδοξος","optimistic"],["σκεπτικός","sceptical"],
+  ["αφοσιωμένος","dedicated"],["αμελής","careless"],["επιμελής","diligent"],
+  // Adverbs / phrases
+  ["ωστόσο","however"],["επιπλέον","moreover"],["αντίθετα","on the contrary"],
+  ["κατά συνέπεια","consequently"],["επομένως","therefore"],
+  ["εντούτοις","nonetheless"],["ιδιαίτερα","particularly"],
+  ["γενικά","generally"],["συνολικά","overall"],["εν μέρει","partly"],
+  ["αναμφίβολα","undoubtedly"],["προφανώς","obviously"],
+  ["ουσιαστικά","essentially"],["πρακτικά","practically"],
+  ["αναλόγως","accordingly"],["συγκεκριμένα","specifically"],
+  ["κυρίως","mainly"],["ειδικά","especially"],["προηγουμένως","previously"],
+  ["εν τω μεταξύ","meanwhile"],["τελικά","eventually"],
+  ["σταδιακά","gradually"],["αμέσως","immediately"],
+  ["ταυτόχρονα","simultaneously"],["κατά κανόνα","as a rule"],
+
+  // ── Modern spoken Greek – everyday phrases & colloquial language ───────────
+  // Greetings & farewells
+  ["γεια σου","hi / bye (informal)"],["γεια σας","hello / goodbye (formal/plural)"],
+  ["τι κάνεις;","how are you?"],["τι νέα;","what's new? / what's up?"],
+  ["όλα καλά;","everything OK?"],["τα ίδια","same as usual / same old"],
+  ["έτσι κι έτσι","so-so"],["χάρηκα","nice to meet you"],
+  ["καλώς ήρθες","welcome"],["χαίρομαι που σε βλέπω","good to see you"],
+  ["πού χάθηκες;","where have you been? / you've been MIA"],
+  ["τα λέμε","see you / catch you later"],["τα λέμε αργότερα","talk later"],
+  ["άντε γεια","bye then / see ya"],["γεια χαρά","bye / cheerio (casual)"],
+  ["να'σαι καλά","take care / bless you"],["να'μαστε καλά","cheers / may we stay well"],
+  ["στην υγειά σου","cheers / to your health"],["στην υγειά μας","cheers / to our health"],
+
+  // Reactions & exclamations
+  ["τέλεια","perfect / awesome"],["φοβερό","amazing / awesome"],
+  ["ωραία","nice / cool / great"],["εντάξει","OK / alright"],
+  ["σοβαρά;","seriously? / really?"],["αλήθεια;","really? / for real?"],
+  ["μην παίζεις!","no way! / you're kidding!"],
+  ["άντε!","come on! / no way!"],["ελα!","come on! / wow!"],
+  ["ελα ρε!","come on! / seriously?! (emphatic)"],
+  ["μπα!","nah / no way"],["ωχ!","oh! / oops!"],
+  ["τι κρίμα!","what a shame! / what a pity!"],
+  ["τι ωραία!","how lovely! / how nice!"],
+  ["τι τύχη!","what luck!"],["τι λαχτάρα!","what a scare! / what a fright!"],
+  ["μπράβο!","well done! / bravo!"],
+  ["έβαλα τα γέλια","I burst out laughing"],
+  ["πολύ γέλιο","so funny / hilarious"],
+  ["με τρέλανες","you're cracking me up / you're killing me"],
+  ["γαμάτο","awesome / sick (slang)"],["τέρμα","totally / all the way / max"],
+
+  // Questions & responses
+  ["δεν έχω ιδέα","I have no idea"],["τι εννοείς;","what do you mean?"],
+  ["πώς έτσι;","how come? / why?"],["τι λες;","what do you say? / what do you think?"],
+  ["τι έγινε;","what happened? / what's up?"],["πώς πήγε;","how did it go?"],
+  ["πώς τα πας;","how are you doing?"],["τι τρέχει;","what's going on?"],
+  ["το ξέρω","I know"],["δεν ξέρω","I don't know"],
+  ["δεν καταλαβαίνω","I don't understand"],["κατάλαβα","got it / I understand"],
+  ["ό,τι νά'ναι","whatever"],["έτσι κι αλλιώς","anyway / either way"],
+  ["μεταξύ μας","between us / off the record"],
+  ["κάτι παίζει","something's going on"],["δεν παίζει","no way / not happening"],
+  ["παίζει;","could it be? / is that possible?"],
+  ["μου κάνει","it works for me / suits me"],["δεν μου κάνει","doesn't work for me"],
+  ["βλέπουμε","we'll see"],["κάτσε να δούμε","let's wait and see"],
+  ["ακούς;","are you listening?"],["είδες;","you see? / did you see?"],
+  ["θυμάσαι;","do you remember?"],["πώς σου φαίνεται;","what do you think? / how does it seem?"],
+  ["ξέρεις τι;","you know what?"],
+
+  // Feelings & states
+  ["πεινάω","I'm hungry"],["διψάω","I'm thirsty"],
+  ["κουράστηκα","I'm tired"],["βαριέμαι","I'm bored"],
+  ["βιάζομαι","I'm in a hurry"],["δεν βιάζομαι","I'm not in a hurry"],
+  ["χαίρομαι","I'm happy / I'm glad"],["λυπάμαι","I'm sorry / I'm sad"],
+  ["στεναχωριέμαι","I'm upset / worried"],["θυμώνω","I'm getting angry"],
+  ["είμαι εντάξει","I'm OK / I'm fine"],["δεν τα πάω καλά","I'm not doing well"],
+  ["χάθηκα","I'm lost / I'm confused"],
+  ["δεν το χωράει το μυαλό μου","I can't wrap my head around it"],
+  ["αισθάνομαι άσχημα","I feel unwell"],["έχω πυρετό","I have a fever"],
+  ["έχω κρύωμα","I have a cold"],["έχω πονοκέφαλο","I have a headache"],
+  ["με πονάει","it hurts / I'm in pain"],
+  ["περαστικά","get well soon"],["καλή επιτυχία","good luck"],
+
+  // Making plans & going out
+  ["χαλάρωσε","chill out / relax"],["μην αγχώνεσαι","don't stress"],
+  ["ησύχασε","calm down"],["άσε με","leave me alone / let me be"],
+  ["πάμε","let's go"],["άντε πάμε","come on let's go"],
+  ["φύγαμε","we're off / let's split"],["πάμε μαζί;","shall we go together?"],
+  ["πάμε για καφέ;","shall we go for coffee?"],["πάμε για ποτό;","shall we go for drinks?"],
+  ["τι κάνεις απόψε;","what are you doing tonight?"],
+  ["θα βγούμε;","shall we go out?"],["έλα μαζί μας","come with us"],
+  ["πού πας;","where are you going?"],["πού είσαι;","where are you?"],
+  ["τι ώρα είναι;","what time is it?"],["τι ώρα βγαίνεις;","what time are you free?"],
+  ["πότε βλεπόμαστε;","when are we meeting?"],
+  ["κλεισμένο","booked / reserved / closed"],["δεν έχει θέση","no room / fully booked"],
+  ["έχει κόσμο","it's crowded"],["κάνω ουρά","I'm queuing / waiting in line"],
+  ["κάνουμε παρέα","we're hanging out"],
+  ["γλεντάμε","we're having fun / we're partying"],
+  ["βλέπω σειρά","I'm watching a series"],["βλέπουμε ταινία","we're watching a film"],
+  ["πού βγαίνουμε;","where are we going out?"],
+  ["τι μουσική παίζει;","what music is playing?"],
+  ["φεύγω νωρίς","I'm leaving early"],["μένω λίγο ακόμα","I'm staying a bit longer"],
+  ["περνάω καλά","I'm having a good time"],["το πέρασα πολύ καλά","I had a great time"],
+  ["καλή συνέχεια","enjoy the rest of your day"],
+
+  // Food & drink
+  ["ο λογαριασμός παρακαλώ","the bill please"],["πληρώνω εγώ","I'm paying / it's on me"],
+  ["μισός-μισός","let's split it / half and half"],
+  ["τι θα φάμε;","what shall we eat?"],["παραγγέλνουμε;","shall we order?"],
+  ["πού τρώμε;","where are we eating?"],["κάτι ελαφρύ","something light"],
+  ["ήταν νόστιμο","it was delicious"],["θέλω έναν καφέ","I want a coffee"],
+  ["έναν φραπέ","a frappé coffee"],["ακόμα ένα","one more / another one"],
+  ["τι μαγειρεύουμε;","what are we cooking?"],["ψήνω μπάρμπεκιου","I'm having a BBQ"],
+
+  // Getting around
+  ["είμαι στο δρόμο","I'm on my way"],["αργώ λίγο","I'm running a bit late"],
+  ["έρχομαι","I'm coming"],["φεύγω τώρα","I'm leaving now"],
+  ["δεξιά","to the right"],["αριστερά","to the left"],["ευθεία","straight ahead"],
+  ["κοντά","nearby / close"],["μακριά","far"],
+  ["πόσο μακριά είναι;","how far is it?"],["κατεβαίνω εδώ","I'm getting off here"],
+  ["το έχασα το λεωφορείο","I missed the bus"],
+  ["πιάνω ταξί","I'm getting a taxi"],["παίρνω το μετρό","I'm taking the metro"],
+  ["κυκλοφοριακό","traffic jam"],["εδώ πέρα","over here / around here"],
+  ["εκεί πέρα","over there"],
+
+  // Shopping & services
+  ["μου αρέσει","I like it"],["δεν μου αρέσει","I don't like it"],
+  ["μου αρέσει πολύ","I really like it"],
+  ["θέλω αυτό","I want this"],["δεν το θέλω","I don't want it"],
+  ["μπορώ να δω;","can I have a look? / can I see?"],
+  ["έχετε άλλο μέγεθος;","do you have another size?"],
+  ["τι ώρα ανοίγει;","what time does it open?"],
+  ["τι ώρα κλείνει;","what time does it close?"],
+  ["είστε ανοιχτά;","are you open?"],["κλειστά σήμερα","closed today"],
+  ["είναι ακριβό","it's expensive"],["είναι φτηνό","it's cheap"],
+  ["κάνει καλή τιμή","it's a good price"],["τσάμπα","free / for nothing"],
+
+  // Tech & phones
+  ["η μπαταρία μου τελείωσε","my battery died"],
+  ["δεν έχω σήμα","I have no signal"],["το wifi δεν δουλεύει","the wifi isn't working"],
+  ["ο κωδικός","the password / the code"],["βγάλε φωτογραφία","take a photo"],
+  ["ποστάρω","I'm posting online"],["στέλνω μήνυμα","I'm sending a message"],
+  ["έχεις whatsapp;","do you have WhatsApp?"],
+  ["τσεκάρω τα μηνύματα","I'm checking my messages"],
+
+  // Work & study
+  ["δουλεύω από σπίτι","I work from home"],
+  ["πολλή δουλειά","a lot of work / swamped with work"],
+  ["έχω δουλειά","I have work / I'm busy"],
+  ["ακυρώνω τη συνάντηση","I'm cancelling the meeting"],
+  ["αναβάλλω","I'm postponing it"],["τα πήγα καλά","I did well"],
+  ["τα χάλασα","I messed up"],
+
+  // Weather
+  ["κάνει ζέστη","it's hot"],["κάνει κρύο","it's cold"],
+  ["έχει ήλιο","it's sunny"],["βρέχει","it's raining"],
+  ["χιονίζει","it's snowing"],["κάνει αέρα","it's windy"],
+  ["τι καιρός κάνει;","what's the weather like?"],
+
+  // Useful connectors & short phrases
+  ["λοιπόν","so / well then"],["μάλλον","probably / I suppose"],
+  ["ίσως","maybe / perhaps"],["βέβαια","of course"],
+  ["σίγουρα","definitely / sure"],["μάλιστα","indeed / yes / noted"],
+  ["άνετα","no problem / easy / relaxed"],["δεν πειράζει","no worries / never mind"],
+  ["συγγνώμη","sorry / excuse me"],["παρακαλώ","please / you're welcome"],
+  ["ευχαριστώ","thank you"],["ευχαριστώ πολύ","thank you very much"],
+  ["πάρα πολύ","way too much / a lot"],["λίγο λίγο","little by little"],
+  ["καλύτερα","better"],["χειρότερα","worse"],
+  ["αμέσως","right away / immediately"],["μισό λεπτό","one moment / just a sec"],
+  ["περίμενε","wait / hold on"],["αργότερα","later"],
+  ["αύριο","tomorrow"],["χτες","yesterday"],["φέτος","this year"],["πέρσι","last year"],
+  ["τώρα","now"],["σε λίγο","in a bit / shortly"],
+  ["πάει","it's done / forget it / it's gone"],
+  ["τέλος","done / finished / end of story"],["τελειώσαμε","we're done"],
+
+  // Colloquial words & slang
+  ["ρε φίλε","hey man / dude"],["φίλε μου","my friend / buddy"],
+  ["παιδιά","guys / everyone (informal)"],["ρε","hey / man (informal address)"],
+  ["λεφτά","money (informal / colloquial)"],
+  ["δεν έχω λεφτά","I'm broke / I don't have money"],
+  ["έχει λεφτά","he/she has money / is loaded"],
+  ["ρίξε μια ματιά","take a look / have a look"],
+  ["τρέχα γύρευε","good luck finding it / it's long gone (idiom)"],
+  ["τα'χω τετρακόσια","I'm all confused / everything's muddled (idiom)"],
+  ["χαλασμένο","broken / out of order"],["δεν δουλεύει","it's not working"],
+  ["τελείωσε","it's finished / it ran out"],["το βρήκα!","I found it!"],
+  ["πού το έβαλα;","where did I put it?"],["έχασα τα κλειδιά μου","I lost my keys"],
+  ["κλειδωμένο","locked"],["ξεκλείδωτο","unlocked"],
+  ["κλείνω","I'm closing / shutting off"],["ανοίγω","I'm opening"],
+  ["είμαστε έτοιμοι;","are we ready?"],["ξεκινάμε;","shall we start?"],
+  ["τελειώσαμε","we're done"],["καλή συνέχεια","enjoy the rest of your day"],
+  ["κακή τύχη","bad luck"],["καλή τύχη","good luck"],
+];
+
+// ── Utilities ────────────────────────────────────────────────────────────────
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+class Deck {
+  constructor(items) { this._all = [...items]; this._pool = []; }
+  draw() {
+    if (!this._pool.length) { this._pool = shuffle([...this._all]); }
+    return this._pool.pop();
+  }
+}
+
+// ── State ────────────────────────────────────────────────────────────────────
+let score   = 0;
+let streak  = 0;
+let best    = parseInt(localStorage.getItem('greek_best') || '0', 10);
+let deck    = new Deck(WORDS);
+let answered, correctAnswer, choices;
+
+// DOM refs
+const elDirection = document.getElementById('direction');
+const elWord      = document.getElementById('word');
+const elFeedback  = document.getElementById('feedback');
+const elNext      = document.getElementById('btn-next');
+const elBtns      = [0,1,2,3].map(i => document.getElementById('btn' + i));
+
+function updateHeader() {
+  document.querySelector('#lbl-score  .score-val').textContent = score;
+  document.querySelector('#lbl-streak .score-val').textContent = streak;
+  document.querySelector('#lbl-best   .score-val').textContent = best;
+}
+
+// ── New round ────────────────────────────────────────────────────────────────
+function newRound() {
+  answered = false;
+  elFeedback.textContent = '';
+  elFeedback.style.color = 'var(--text)';
+  elNext.disabled = true;
+
+  const [greek, english] = deck.draw();
+  const dir = Math.random() < 0.5 ? 'en_to_gr' : 'gr_to_en';
+
+  let prompt, correct, pool;
+  if (dir === 'en_to_gr') {
+    prompt  = english;
+    correct = greek;
+    pool    = WORDS.map(w => w[0]).filter(w => w !== greek);
+    elDirection.textContent = 'Translate to  Greek 🇬🇷';
+  } else {
+    prompt  = greek;
+    correct = english;
+    pool    = WORDS.map(w => w[1]).filter(w => w !== english);
+    elDirection.textContent = 'Translate to  English 🇬🇧';
+  }
+
+  correctAnswer = correct;
+  shuffle(pool);
+  choices = shuffle([correct, pool[0], pool[1], pool[2]]);
+
+  elWord.textContent = prompt;
+
+  elBtns.forEach((btn, i) => {
+    btn.classList.remove('correct', 'wrong');
+    btn.disabled = false;
+    btn.querySelector('.val').textContent = choices[i];
+  });
+}
+
+// ── Choice click ─────────────────────────────────────────────────────────────
+function onChoice(i) {
+  if (answered) return;
+  answered = true;
+
+  const chosen = choices[i];
+  const isRight = chosen === correctAnswer;
+
+  elBtns.forEach((btn, j) => {
+    btn.disabled = true;
+    if (choices[j] === correctAnswer) btn.classList.add('correct');
+  });
+
+  if (isRight) {
+    score++;
+    streak++;
+    if (score > best) { best = score; localStorage.setItem('greek_best', best); }
+    elBtns[i].classList.add('correct');
+    const fire = streak > 1 ? `  🔥 ×${streak}` : '';
+    elFeedback.style.color = 'var(--green)';
+    elFeedback.textContent = `✔  Correct!${fire}`;
+  } else {
+    streak = 0;
+    elBtns[i].classList.add('wrong');
+    elFeedback.style.color = 'var(--red)';
+    elFeedback.textContent = `✘  Wrong!   Answer: ${correctAnswer}`;
+  }
+
+  updateHeader();
+  elNext.disabled = false;
+}
+
+elBtns.forEach((btn, i) => btn.addEventListener('click', () => onChoice(i)));
+elNext.addEventListener('click', newRound);
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+updateHeader();
+newRound();
+
+// ── Service worker ───────────────────────────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js');
+}
+</script>
+</body>
+</html>
