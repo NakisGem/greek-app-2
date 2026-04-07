@@ -604,6 +604,9 @@ function newRound() {
   }
 
   correctAnswer = correct;
+  const isPhrase = s => s.trim().split(/\s+/).length >= 3;
+  const filtered = pool.filter(w => isPhrase(w) === isPhrase(correct));
+  if (filtered.length >= 3) pool = filtered;
   shuffle(pool);
   choices = shuffle([correct, pool[0], pool[1], pool[2]]);
 
