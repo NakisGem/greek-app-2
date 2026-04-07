@@ -1,4 +1,4 @@
-const CACHE = 'greek-en-v3';
+const CACHE = 'greek-en-v4';
 const FILES = ['./index.html', './manifest.json', './sw.js', './icon.svg'];
 
 self.addEventListener('install', e =>
